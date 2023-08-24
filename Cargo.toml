@@ -1,0 +1,16 @@
+[package]
+name = "music_app_server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+dotenv = "0.15.0"
+poem = "1.2"
+poem-openapi = { version = "3.0.3", features = ["openapi-explorer"] }
+reqwest = "0.11.20"
+rspotify = { version = "0.11.7", features = ["cli"] }
+serde_json = "1.0.105"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
