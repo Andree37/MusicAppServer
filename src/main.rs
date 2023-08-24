@@ -7,9 +7,7 @@ use poem::{listener::TcpListener, Route};
 use poem_openapi::{OpenApi, OpenApiService, param::Query, payload::PlainText};
 use rspotify::model::{AlbumId, ArtistId, RecommendationsAttribute, TrackId};
 use rspotify::prelude::BaseClient;
-
 struct Api;
-
 
 #[OpenApi]
 impl Api {
@@ -21,11 +19,40 @@ impl Api {
         }
     }
 }
+#[derive(sqlx::Type)]
+#[sqlx(rename_all = "lowercase")]
+#[derive(poem_openapi::Enum)]
+enum Genres{
+    Pop,
+    Rock,
+    Metal,
+}
+
+#[derive(poem_openapi::Object)]
+struct Song {
+    id : i32,
+    title : String,
+    artist : String,
+    genre : Genres,
+    rating : i32,
+    description : Option<String>,
+    overview : Option<String>,
+    created_at : chrono::DateTime<chrono::Utc>,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load variables from .env file
     dotenv::dotenv().ok();
+
+    let pool = sqlx::PgPool::connect(&env::var("DATABASE_URL").expect("DATABASE_URL must be set")).await?;
+
+    let row = sqlx::query_as!(Song, "SELECT id, title, artist, rating, description, overview, created_at, genre as \"genre: _\" FROM songs")
+        .fetch_one(&pool)
+        .await?;
+
+    println!("Value from database: {:?}", row.artist);
+
 
     let api_service =
         OpenApiService::new(Api, "Hello World", "1.0").server("http://localhost:3000/api");
