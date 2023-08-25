@@ -2,7 +2,6 @@ extern crate dotenv;
 
 use std::env;
 
-use anyhow::Result;
 use poem::{EndpointExt, listener::TcpListener, Route};
 use poem_openapi::OpenApiService;
 
@@ -15,9 +14,8 @@ mod models;
 mod services;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    // Load variables from .env file
-    dotenv::dotenv().ok();
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv::dotenv()?;
 
     let db = DB::new(env::var("DATABASE_URL").expect("DATABASE_URL must be set")).await?;
 

@@ -1,6 +1,7 @@
-use anyhow::Result;
+use rspotify::ClientError;
 use rspotify::clients::BaseClient;
-use rspotify::model::Recommendations;
+use rspotify::model::{Recommendations, SimplifiedTrack};
+use crate::models::genres::Genres;
 
 #[derive(Clone)]
 pub struct Spotify {
@@ -8,7 +9,7 @@ pub struct Spotify {
 }
 
 impl Spotify {
-    pub async fn new(client_id: String, secret: String) -> Result<Self> {
+    pub async fn new(client_id: String, secret: String) -> Result<Self, ClientError> {
         let creds = rspotify::Credentials {
             id: client_id,
             secret: Some(secret),
@@ -19,23 +20,31 @@ impl Spotify {
         return Ok(Self { client });
     }
 
-    pub async fn get_recommendations(&self, genres: Vec<String>, limit: u32) -> Result<Recommendations> {
+    pub async fn get_recommendations(&self, genre: String, limit: u32) -> Result<Recommendations, ClientError> {
         let attributes = [
             rspotify::model::RecommendationsAttribute::MinEnergy(0.4),
             rspotify::model::RecommendationsAttribute::MinPopularity(50),
         ];
 
-        let genres: Vec<&str> = genres.iter().map(AsRef::as_ref).collect();
+        let genre = genre.as_str();
 
         let recommendations = self.client.recommendations(
             attributes,
             Some([]),
-            Some(genres),
+            Some([genre]),
             Some([]),
             None,
             Some(limit),
         ).await?;
 
         return Ok(recommendations);
+    }
+
+    pub async fn generate_daily_song(&self, genre: &Genres) -> Result<SimplifiedTrack, ClientError> {
+        let genre: String = genre.try_into().expect("invalid genre");
+        let recommendations = self.get_recommendations(genre, 1).await?;
+        let song = recommendations.tracks.first().expect("no song found").to_owned();
+
+        return Ok(song);
     }
 }

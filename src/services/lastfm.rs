@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 pub struct DetailResponse {
     pub track_info: String,
     pub track_summary: String,
@@ -12,11 +10,11 @@ pub struct LastFM {
 }
 
 impl LastFM {
-    pub async fn new(key: String) -> Result<LastFM> {
+    pub async fn new(key: String) -> Result<LastFM, reqwest::Error> {
         return Ok(Self { key });
     }
 
-    pub async fn get_details(&self, artist_name: &str, track_name: &str) -> Result<DetailResponse> {
+    pub async fn get_details(&self, artist_name: &str, track_name: &str) -> Result<DetailResponse, reqwest::Error> {
         let url = format!("http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={}&artist={}&track={}&format=json", &self.key, artist_name, track_name);
         let response: serde_json::Value = reqwest::get(&url).await?.json().await?;
 

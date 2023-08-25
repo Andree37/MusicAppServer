@@ -1,3 +1,3 @@
 pub mod song;
-mod genres;
+pub mod genres;
 
