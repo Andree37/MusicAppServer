@@ -3,7 +3,7 @@ use poem_openapi::OpenApi;
 use poem_openapi::payload::{PlainText, Json};
 use poem_openapi::types::Type;
 
-use crate::models::genres::Genres;
+use crate::models::genres::{GenrePayload, Genres};
 use crate::models::song::SongResponse;
 use crate::services::db::DB;
 use crate::services::lastfm::LastFM;
@@ -34,8 +34,8 @@ impl Api {
     }
 
     #[oai(path = "/spotify", method = "post")]
-    async fn get_daily_songs(&self, spotify: Data<&Spotify>, lastfm: Data<&LastFM>, db: Data<&DB>, genre: Query<String>) -> SongResponse {
-        let genre: Genres = genre.0.try_into().map_err(|e| poem::error::BadRequest(e))?;
+    async fn get_daily_songs(&self, spotify: Data<&Spotify>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>) -> SongResponse {
+        let genre: Genres = genre.0.genre.into();
 
         let spotify_track = spotify.0.generate_daily_song(&genre).await.map_err(|e| poem::error::NotFound(e))?;
 

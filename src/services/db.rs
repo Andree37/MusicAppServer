@@ -21,8 +21,10 @@ impl DB {
     }
 
     pub async fn save_song(&self, title: &str, artist: &str, link: &str, description: &str, overview: &str, genre: &Genres) -> Result<Song, sqlx::Error> {
-        let song = sqlx::query_as!(Song, "INSERT INTO songs (title, artist, link, description, overview, genre) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, artist, link, description, overview, created_at, genre as \"genre: _\"", title, artist, link, description, overview, genre)
-            .execute(&self.pool)
+        let genre: String = genre.into();
+
+        let song = sqlx::query_as!(Song, "INSERT INTO songs (title, artist, link, description, overview, genre) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, artist, link, description, overview, created_at, genre", title, artist, link, description, overview, genre)
+            .fetch_one(&self.pool)
             .await?;
         return Ok(song);
     }

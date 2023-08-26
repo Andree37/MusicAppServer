@@ -1,8 +1,8 @@
-use std::fmt::Error;
+use poem_openapi::{Enum, Object};
 
 #[derive(sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
-#[derive(poem_openapi::Enum)]
+#[derive(Enum)]
 pub enum Genres {
     Unknown,
     Pop,
@@ -10,43 +10,40 @@ pub enum Genres {
     Metal,
 }
 
-impl TryFrom<String> for Genres {
-    type Error = Error;
+#[derive(Object)]
+pub struct GenrePayload {
+    pub genre: String,
+}
 
-    fn try_from(value: String) -> Result<Self, Error> {
+impl From<String> for Genres {
+    fn from(value: String) -> Self {
         match value {
-            s if s.eq_ignore_ascii_case("pop") => Ok(Genres::Pop),
-            s if s.eq_ignore_ascii_case("rock") => Ok(Genres::Rock),
-            s if s.eq_ignore_ascii_case("metal") => Ok(Genres::Metal),
-            _ => Ok(Genres::Unknown),
+            s if s.eq_ignore_ascii_case("pop") => Genres::Pop,
+            s if s.eq_ignore_ascii_case("rock") => Genres::Rock,
+            s if s.eq_ignore_ascii_case("metal") => Genres::Metal,
+            _ => Genres::Unknown,
         }
     }
 }
 
-impl TryFrom<Genres> for String {
-    type Error = Error;
-
-    fn try_from(value: Genres) -> Result<Self, Error> {
-        let e = match value {
+impl From<Genres> for String {
+    fn from(value: Genres) -> Self {
+        return match value {
             Genres::Unknown => "unknown".to_string(),
             Genres::Pop => "pop".to_string(),
             Genres::Rock => "rock".to_string(),
             Genres::Metal => "metal".to_string(),
         };
-        return Ok(e);
     }
 }
 
-impl TryFrom<&Genres> for String {
-    type Error = Error;
-
-    fn try_from(value: &Genres) -> Result<Self, Error> {
-        let e = match value {
+impl From<&Genres> for String {
+    fn from(value: &Genres) -> Self {
+        return match value {
             Genres::Unknown => "unknown".to_string(),
             Genres::Pop => "pop".to_string(),
             Genres::Rock => "rock".to_string(),
             Genres::Metal => "metal".to_string(),
         };
-        return Ok(e);
     }
 }

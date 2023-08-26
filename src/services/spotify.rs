@@ -41,7 +41,7 @@ impl Spotify {
     }
 
     pub async fn generate_daily_song(&self, genre: &Genres) -> Result<SimplifiedTrack, ClientError> {
-        let genre: String = genre.try_into().expect("invalid genre");
+        let genre: String = genre.into();
         let recommendations = self.get_recommendations(genre, 1).await?;
         let song = recommendations.tracks.first().expect("no song found").to_owned();
 
