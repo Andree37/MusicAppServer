@@ -40,11 +40,17 @@ impl Spotify {
         return Ok(recommendations);
     }
 
-    pub async fn generate_daily_song(&self, genre: &Genres) -> Result<SimplifiedTrack, ClientError> {
+    pub async fn generate_daily_song(&self, genre: &Genres) -> Option<SimplifiedTrack> {
         let genre: String = genre.into();
-        let recommendations = self.get_recommendations(genre, 1).await?;
-        let song = recommendations.tracks.first().expect("no song found").to_owned();
+        let recommendations = match self.get_recommendations(genre, 1).await {
+            Ok(rec) => rec,
+            Err(_) => return None,
+        };
+        let song = match recommendations.tracks.first() {
+            Some(song) => song.to_owned(),
+            None => return None,
+        };
 
-        return Ok(song);
+        return Some(song);
     }
 }

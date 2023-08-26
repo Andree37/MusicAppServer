@@ -1,3 +1,4 @@
+use std::io::{Error, ErrorKind};
 use poem::web::{Data, Query};
 use poem_openapi::OpenApi;
 use poem_openapi::payload::{PlainText, Json};
@@ -29,7 +30,10 @@ impl Api {
         if limit.0.is_none() {
             return PlainText("must specify limit".to_string());
         }
-        let rec = spotify.0.get_recommendations(genre.0, limit.0).await.unwrap();
+        let rec = match spotify.0.get_recommendations(genre.0, limit.0).await {
+            Ok(rec) => rec,
+            Err(_) => return PlainText("error".to_string()),
+        };
         return PlainText(format!("recommendations: {:?}", rec));
     }
 
@@ -37,11 +41,21 @@ impl Api {
     async fn get_daily_songs(&self, spotify: Data<&Spotify>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>) -> SongResponse {
         let genre: Genres = genre.0.genre.into();
 
-        let spotify_track = spotify.0.generate_daily_song(&genre).await.map_err(|e| poem::error::NotFound(e))?;
+        let spotify_track = match spotify.0.generate_daily_song(&genre).await {
+            Some(track) => track,
+            None => return Err(poem::error::BadRequest(Error::new(ErrorKind::NotFound, "no song found"))),
+        };
 
-        let artist_name = &spotify_track.artists.first().expect("no artist found").name;
+        let artist_name = match &spotify_track.artists.first() {
+            Some(artist) => &artist.name,
+            None => return Err(poem::error::BadRequest(Error::new(ErrorKind::NotFound, "no artist found"))),
+        };
+
         let song_name = &spotify_track.name;
-        let link = spotify_track.external_urls.get("spotify").expect("no spotify link found");
+        let link = match spotify_track.external_urls.get("spotify") {
+            Some(link) => link,
+            None => return Err(poem::error::BadRequest(Error::new(ErrorKind::NotFound, "no link found"))),
+        };
 
         let lastfm_track = lastfm.0.get_details(artist_name, song_name).await.map_err(|e| poem::error::BadRequest(e))?;
 
