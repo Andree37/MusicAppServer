@@ -1,5 +1,6 @@
 use poem_openapi::payload::Json;
-use poem::Result;
+use poem_openapi::ApiResponse;
+use crate::models::errors::{ResponseError};
 
 use crate::models::genres::Genres;
 
@@ -15,4 +16,13 @@ pub struct Song {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-pub type SongResponse = Result<Json<Song>>;
+
+#[derive(ApiResponse)]
+pub enum SongResponse {
+    #[oai(status = 200)]
+    Song(Json<Song>),
+
+    #[oai(status = 404)]
+    NotFound(Json<ResponseError>),
+}
+

@@ -1,8 +1,9 @@
-use std::io::{Error, ErrorKind};
 use poem::web::{Data, Query};
 use poem_openapi::OpenApi;
 use poem_openapi::payload::{PlainText, Json};
 use poem_openapi::types::Type;
+use poem::Result;
+use crate::models::errors::ResponseError;
 
 use crate::models::genres::{GenrePayload, Genres};
 use crate::models::song::SongResponse;
@@ -38,23 +39,27 @@ impl Api {
     }
 
     #[oai(path = "/spotify", method = "post")]
-    async fn get_daily_songs(&self, spotify: Data<&Spotify>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>) -> SongResponse {
+    async fn get_daily_songs(&self, spotify: Data<&Spotify>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>) -> Result<SongResponse> {
         let genre: Genres = genre.0.genre.into();
+
+        if genre == Genres::Unknown {
+            return Ok(SongResponse::NotFound(Json(ResponseError { message: "invalid genre".to_string() })));
+        }
 
         let spotify_track = match spotify.0.generate_daily_song(&genre).await {
             Some(track) => track,
-            None => return Err(poem::error::BadRequest(Error::new(ErrorKind::NotFound, "no song found"))),
+            None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no track found".to_string() }))),
         };
 
         let artist_name = match &spotify_track.artists.first() {
             Some(artist) => &artist.name,
-            None => return Err(poem::error::BadRequest(Error::new(ErrorKind::NotFound, "no artist found"))),
+            None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no artist found".to_string() }))),
         };
 
         let song_name = &spotify_track.name;
         let link = match spotify_track.external_urls.get("spotify") {
             Some(link) => link,
-            None => return Err(poem::error::BadRequest(Error::new(ErrorKind::NotFound, "no link found"))),
+            None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no link found".to_string() }))),
         };
 
         let lastfm_track = lastfm.0.get_details(artist_name, song_name).await.map_err(|e| poem::error::BadRequest(e))?;
@@ -64,6 +69,6 @@ impl Api {
 
         let song = db.0.save_song(song_name, artist_name, link, description, summary, &genre).await.map_err(|e| poem::error::InternalServerError(e))?;
 
-        return Ok(Json(song));
+        return Ok(SongResponse::Song(Json(song)));
     }
 }

@@ -3,6 +3,7 @@ use poem_openapi::{Enum, Object};
 #[derive(sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
 #[derive(Enum)]
+#[derive(PartialEq)]
 pub enum Genres {
     Unknown,
     Pop,
