@@ -1,3 +1,5 @@
+use chrono::{FixedOffset, NaiveDate};
+use sqlx::types::chrono::{DateTime, Utc};
 use crate::models::genres::Genres;
 use crate::models::song::Song;
 
@@ -27,5 +29,12 @@ impl DB {
             .fetch_one(&self.pool)
             .await?;
         return Ok(song);
+    }
+
+    pub async fn get_daily_songs(&self, day: NaiveDate) -> Result<Vec<Song>, sqlx::Error> {
+        let songs = sqlx::query_as!(Song, "SELECT id, title, artist, link, description, overview, created_at, genre FROM songs WHERE created_at::date >= $1 and created_at::date < $1 + interval '1 day'", day)
+            .fetch_all(&self.pool)
+            .await?;
+        return Ok(songs);
     }
 }

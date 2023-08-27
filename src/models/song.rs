@@ -24,5 +24,19 @@ pub enum SongResponse {
 
     #[oai(status = 404)]
     NotFound(Json<ResponseError>),
+
+    #[oai(status = 401)]
+    BadRequest(Json<ResponseError>),
 }
 
+#[derive(ApiResponse)]
+pub enum SongsResponse {
+    #[oai(status = 200)]
+    Song(Json<Vec<Song>>),
+
+    #[oai(status = 404)]
+    NotFound(Json<ResponseError>),
+
+    #[oai(status = 401)]
+    BadRequest(Json<ResponseError>),
+}
