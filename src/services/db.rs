@@ -1,8 +1,7 @@
-use chrono::{FixedOffset, NaiveDate};
-use sqlx::types::chrono::{DateTime, Utc};
+use chrono::NaiveDate;
+
 use crate::models::genres::Genres;
 use crate::models::song::Song;
-
 
 #[derive(Clone)]
 pub struct DB {
@@ -16,23 +15,23 @@ impl DB {
     }
 
     pub async fn select_all_songs(&self) -> Result<Vec<Song>, sqlx::Error> {
-        let songs = sqlx::query_as!(Song, "SELECT id, title, artist, link, description, overview, created_at, genre as \"genre: _\" FROM songs")
+        let songs = sqlx::query_as!(Song, "SELECT id, title, artist, link, description, overview, created_at, genre, album_cover FROM songs")
             .fetch_all(&self.pool)
             .await?;
         return Ok(songs);
     }
 
-    pub async fn save_song(&self, title: &str, artist: &str, link: &str, description: &str, overview: &str, genre: &Genres) -> Result<Song, sqlx::Error> {
+    pub async fn save_song(&self, title: &str, artist: &str, link: &str, description: &str, overview: &str, genre: &Genres, album_cover: &str) -> Result<Song, sqlx::Error> {
         let genre: String = genre.into();
 
-        let song = sqlx::query_as!(Song, "INSERT INTO songs (title, artist, link, description, overview, genre) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, artist, link, description, overview, created_at, genre", title, artist, link, description, overview, genre)
+        let song = sqlx::query_as!(Song, "INSERT INTO songs (title, artist, link, description, overview, genre, album_cover) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, title, artist, link, description, overview, created_at, genre, album_cover", title, artist, link, description, overview, genre, album_cover)
             .fetch_one(&self.pool)
             .await?;
         return Ok(song);
     }
 
     pub async fn get_daily_songs(&self, day: NaiveDate) -> Result<Vec<Song>, sqlx::Error> {
-        let songs = sqlx::query_as!(Song, "SELECT id, title, artist, link, description, overview, created_at, genre FROM songs WHERE created_at::date >= $1 and created_at::date < $1 + interval '1 day'", day)
+        let songs = sqlx::query_as!(Song, "SELECT id, title, artist, link, description, overview, created_at, genre, album_cover FROM songs WHERE created_at::date >= $1 and created_at::date < $1 + interval '1 day'", day)
             .fetch_all(&self.pool)
             .await?;
         return Ok(songs);

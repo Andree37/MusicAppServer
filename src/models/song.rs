@@ -13,6 +13,7 @@ pub struct Song {
     pub link: String,
     pub description: Option<String>,
     pub overview: Option<String>,
+    pub album_cover: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 

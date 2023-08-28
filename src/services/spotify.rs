@@ -1,6 +1,9 @@
 use rspotify::ClientError;
 use rspotify::clients::BaseClient;
-use rspotify::model::{Recommendations, SimplifiedTrack};
+use rspotify::model::{Recommendations, SimplifiedAlbum, SimplifiedTrack};
+use rspotify::model::SearchResult::Albums;
+use rspotify::model::SearchType::Album;
+
 use crate::models::genres::Genres;
 
 #[derive(Clone)]
@@ -38,6 +41,19 @@ impl Spotify {
         ).await?;
 
         return Ok(recommendations);
+    }
+
+    pub async fn search_track_details(&self, artist: &str, track: &str) -> Option<Vec<SimplifiedAlbum>> {
+        let query = format!("{} {}", artist, track);
+        let search_result = match self.client.search(&query, Album, None, None, Some(1), Some(0)).await {
+            Ok(result) => result,
+            Err(_) => return None,
+        };
+
+        return match search_result {
+            Albums(album) => Some(album.items),
+            _ => None,
+        };
     }
 
     pub async fn generate_daily_song(&self, genre: &Genres) -> Option<SimplifiedTrack> {

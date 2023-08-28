@@ -1,12 +1,11 @@
 use chrono::NaiveDate;
-use poem_openapi::OpenApi;
-use poem_openapi::payload::{PlainText, Json};
 use poem::Result;
 use poem::web::Data;
+use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
-use crate::models::errors::ResponseError;
-use sqlx::types::chrono::DateTime;
+use poem_openapi::payload::{Json, PlainText};
 
+use crate::models::errors::ResponseError;
 use crate::models::genres::{GenrePayload, Genres};
 use crate::models::song::{SongResponse, SongsResponse};
 use crate::services::db::DB;
@@ -49,12 +48,26 @@ impl Api {
             None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no link found".to_string() }))),
         };
 
+        let albums = match spotify.search_track_details(artist_name, song_name).await {
+            Some(albums) => match albums.first() {
+                Some(album) => album.to_owned(),
+                None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no album found 1".to_string() }))),
+            }
+            None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no album found 2".to_string() }))),
+        };
+
+        let album_cover = match albums.images.first() {
+            Some(image) => &image.url,
+            None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no album cover found 3".to_string() }))),
+        };
+
+
         let lastfm_track = lastfm.0.get_details(artist_name, song_name).await.map_err(|e| poem::error::BadRequest(e))?;
 
         let description = &lastfm_track.track_description;
         let summary = &lastfm_track.track_summary;
 
-        let song = db.0.save_song(song_name, artist_name, link, description, summary, &genre).await.map_err(|e| poem::error::InternalServerError(e))?;
+        let song = db.0.save_song(song_name, artist_name, link, description, summary, &genre, album_cover).await.map_err(|e| poem::error::InternalServerError(e))?;
 
         return Ok(SongResponse::Song(Json(song)));
     }
