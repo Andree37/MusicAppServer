@@ -15,6 +15,7 @@ mod services;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // this needs to be redone, we need to login with the user in some way
     dotenv::dotenv()?;
 
     let db = DB::new(env::var("DATABASE_URL").expect("DATABASE_URL must be set")).await?;
