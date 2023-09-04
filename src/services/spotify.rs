@@ -9,13 +9,14 @@ use crate::models::genres::Genres;
 #[derive(Clone)]
 pub struct Spotify {
     client: AuthCodeSpotify,
+    token: Token,
 }
 
 impl Spotify {
     pub fn new(token: &Token) -> Result<Self, ClientError> {
         let client = AuthCodeSpotify::from_token(token.clone());
 
-        return Ok(Self { client });
+        return Ok(Self { client, token: token.clone() });
     }
 
     pub async fn get_recommendations(&self, genre: String, limit: u32) -> Result<Recommendations, ClientError> {

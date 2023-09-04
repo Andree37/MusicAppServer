@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 chrono = { version = "0.4.26", features = ["serde"] }
 dotenv = "0.15.0"
-poem = "1.2"
+poem = { version = "1.2", features = ["session"] }
 poem-openapi = { version = "3.0.3", features = ["openapi-explorer", "chrono"] }
 reqwest = "0.11.20"
 rspotify = { version = "0.11.7", features = ["cli"] }

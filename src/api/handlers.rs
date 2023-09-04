@@ -1,11 +1,15 @@
 use std::sync::Arc;
 use chrono::NaiveDate;
+use poem::middleware::AddData;
 use poem::Result;
-use poem::web::Data;
+use poem::session::Session;
+use poem::web::{Data, TypedHeader};
+use poem::web::headers::Header;
 use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
 use poem_openapi::payload::{Json, PlainText};
-use rspotify::{ClientError, Credentials};
+use rspotify::sync::Mutex;
+use rspotify::Token;
 
 use crate::models::errors::ResponseError;
 use crate::models::genres::{GenrePayload, Genres};
@@ -29,37 +33,30 @@ impl Api {
     }
 
     #[oai(path = "/spotify/exchange", method = "post")]
-    async fn exchange_token(&self, state: &Arc<SharedState>, code: Json<TokenPayload>) -> Result<SpotifyResponse> {
-        let token = code.0.authorization_code;
+    async fn exchange_token(&self, token_payload: Data<&TokenPayload>, session: &Session) -> Result<SpotifyResponse> {
+        session.set("token", token_payload.access_token.clone());
+        let token = Token {
+            access_token: token_payload.access_token.clone(),
+            expires_in: token_payload.expires_in.clone(),
+            expires_at: token_payload.expires_at.clone(),
+            refresh_token: token_payload.refresh_token.clone(),
+            scopes: token_payload.scopes.clone(),
+        };
+
         let spotify = Spotify::new(&token);
-        match spotify {
-            Ok(spotify) => {
-                state.spotify.lock().unwrap().replace(spotify);
-                state.spotify_token.lock().unwrap().replace(token.clone());
-            }
-            Err(e) => {
-                return Ok(SpotifyResponse::BadRequest(Json(ResponseError { message: e.to_string() })));
-            }
-        }
 
-
-        Ok(SpotifyResponse::SpotifyResponse(Json(token)))
+        Ok(SpotifyResponse::SpotifyResponse(Json(token_payload.access_token.clone())))
     }
 
     #[oai(path = "/songs", method = "post")]
-    async fn get_daily_songs(&self, state: &Arc<SharedState>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>) -> Result<SongResponse> {
-        let spotify_mutex = state.spotify.lock().unwrap();
-        let spotify = match spotify_mutex.as_ref() {
-            Some(spotify) => spotify,
-            None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no spotify client found, please log in first".to_string() }))),
-        };
+    async fn get_daily_songs(&self, token_payload: Data<&TokenPayload>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>, TypedHeader(host): TypedHeader<String>) -> Result<SongResponse> {
         let genre: Genres = genre.0.genre.into();
 
         if genre == Genres::Unknown {
             return Ok(SongResponse::NotFound(Json(ResponseError { message: "invalid genre".to_string() })));
         }
 
-        let spotify_track = match spotify.0.generate_daily_song(&genre).await {
+        let spotify_track = match spotify.generate_daily_song(&genre).await {
             Some(track) => track,
             None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no track found".to_string() }))),
         };

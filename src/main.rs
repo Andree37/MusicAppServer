@@ -4,6 +4,7 @@ use std::env;
 use std::sync::{Arc, Mutex};
 
 use poem::{EndpointExt, listener::TcpListener, Route};
+use poem::session::{CookieConfig, CookieSession};
 use poem_openapi::OpenApiService;
 use rspotify::{Credentials, Token};
 
@@ -14,11 +15,6 @@ use crate::services::spotify::Spotify;
 mod api;
 mod models;
 mod services;
-
-pub struct SharedState {
-    pub spotify: Mutex<Option<Spotify>>,
-    pub spotify_token: Mutex<Option<Token>>,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -34,14 +30,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ui = api_service.openapi_explorer();
 
-    let shared_state = Arc::new(SharedState {
-        spotify: Mutex::new(None),
-        spotify_token: Mutex::new(None),
-    });
     let app = Route::new()
         .nest("/api", api_service)
         .nest("/ui", ui)
-        .data(shared_state.clone())
+        .with(CookieSession::new(CookieConfig::default().secure(false)))
         .data(lastfm)
         .data(db);
 
