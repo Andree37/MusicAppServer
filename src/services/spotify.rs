@@ -1,5 +1,5 @@
-use rspotify::ClientError;
-use rspotify::clients::BaseClient;
+use rspotify::{AuthCodeSpotify, ClientError, OAuth, scopes, Token};
+use rspotify::clients::{BaseClient, OAuthClient};
 use rspotify::model::{Recommendations, SimplifiedAlbum, SimplifiedTrack};
 use rspotify::model::SearchResult::Albums;
 use rspotify::model::SearchType::Album;
@@ -8,17 +8,12 @@ use crate::models::genres::Genres;
 
 #[derive(Clone)]
 pub struct Spotify {
-    client: rspotify::ClientCredsSpotify,
+    client: AuthCodeSpotify,
 }
 
 impl Spotify {
-    pub async fn new(client_id: String, secret: String) -> Result<Self, ClientError> {
-        let creds = rspotify::Credentials {
-            id: client_id,
-            secret: Some(secret),
-        };
-        let client = rspotify::ClientCredsSpotify::new(creds);
-        client.request_token().await?;
+    pub fn new(token: &Token) -> Result<Self, ClientError> {
+        let client = AuthCodeSpotify::from_token(token.clone());
 
         return Ok(Self { client });
     }

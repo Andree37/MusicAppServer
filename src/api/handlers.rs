@@ -1,16 +1,20 @@
+use std::sync::Arc;
 use chrono::NaiveDate;
 use poem::Result;
 use poem::web::Data;
 use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
 use poem_openapi::payload::{Json, PlainText};
+use rspotify::{ClientError, Credentials};
 
 use crate::models::errors::ResponseError;
 use crate::models::genres::{GenrePayload, Genres};
 use crate::models::song::{SongResponse, SongsResponse};
+use crate::models::spotify::{SpotifyResponse, TokenPayload};
 use crate::services::db::DB;
 use crate::services::lastfm::LastFM;
 use crate::services::spotify::Spotify;
+use crate::SharedState;
 
 pub struct Api;
 
@@ -24,8 +28,31 @@ impl Api {
         }
     }
 
+    #[oai(path = "/spotify/exchange", method = "post")]
+    async fn exchange_token(&self, state: &Arc<SharedState>, code: Json<TokenPayload>) -> Result<SpotifyResponse> {
+        let token = code.0.authorization_code;
+        let spotify = Spotify::new(&token);
+        match spotify {
+            Ok(spotify) => {
+                state.spotify.lock().unwrap().replace(spotify);
+                state.spotify_token.lock().unwrap().replace(token.clone());
+            }
+            Err(e) => {
+                return Ok(SpotifyResponse::BadRequest(Json(ResponseError { message: e.to_string() })));
+            }
+        }
+
+
+        Ok(SpotifyResponse::SpotifyResponse(Json(token)))
+    }
+
     #[oai(path = "/songs", method = "post")]
-    async fn get_daily_songs(&self, spotify: Data<&Spotify>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>) -> Result<SongResponse> {
+    async fn get_daily_songs(&self, state: &Arc<SharedState>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>) -> Result<SongResponse> {
+        let spotify_mutex = state.spotify.lock().unwrap();
+        let spotify = match spotify_mutex.as_ref() {
+            Some(spotify) => spotify,
+            None => return Ok(SongResponse::NotFound(Json(ResponseError { message: "no spotify client found, please log in first".to_string() }))),
+        };
         let genre: Genres = genre.0.genre.into();
 
         if genre == Genres::Unknown {
