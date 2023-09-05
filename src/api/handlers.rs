@@ -1,3 +1,4 @@
+use std::fmt::Error;
 use chrono::NaiveDate;
 use poem::Result;
 use poem::session::Session;
@@ -14,6 +15,7 @@ use crate::models::spotify::{CodePayload, SpotifyResponse};
 use crate::services::db::DB;
 use crate::services::lastfm::LastFM;
 use crate::services::spotify::Spotify;
+use crate::token::token::{read_token, write_token};
 
 pub struct Api;
 
@@ -30,19 +32,22 @@ impl Api {
     #[oai(path = "/spotify/exchange", method = "post")]
     async fn exchange_token(&self, code: Json<CodePayload>, db: Data<&DB>, session: &Session) -> Result<SpotifyResponse> {
         let spotify = Spotify::from_code(code.0.code).await.map_err(|e| poem::error::BadRequest(e))?;
-
-        let token_opt = spotify.client.read_token_cache(false).await.map_err(|e| poem::error::BadRequest(e))?;
-
-        let token = match token_opt {
-            None => {
-                return Ok(SpotifyResponse::NotFound(Json(ResponseError { message: "invalid token cache".to_string() })));
-            }
-            Some(v) => { v }
+        let token = match spotify.client.token.clone().lock().await {
+            Ok(token) => match token.clone() {
+                Some(token) => token,
+                None => return Ok(SpotifyResponse::NotFound(Json(ResponseError { message: "could not get the token from the mutex guard".to_string() }))),
+            },
+            Err(_) => return Ok(SpotifyResponse::NotFound(Json(ResponseError { message: "could not get the mutex lock".to_string() }))),
         };
-        session.set("access_token", token.clone());
+
+        match write_token(token.clone(), session) {
+            Ok(_) => {}
+            Err(e) => {
+                return Ok(SpotifyResponse::NotFound(Json(ResponseError { message: e.to_string() })));
+            }
+        }
 
         let expires_in = token.expires_in.num_seconds();
-
         db.0.insert_user(&token.access_token, expires_in as i32, token.expires_at, token.refresh_token).await.map_err(|e| poem::error::BadRequest(e))?;
 
         Ok(SpotifyResponse::SpotifyResponse(Json("success".to_string())))
@@ -55,11 +60,13 @@ impl Api {
         if genre == Genres::Unknown {
             return Ok(SongResponse::NotFound(Json(ResponseError { message: "invalid genre".to_string() })));
         }
-        println!("access_token: {:?}", session.get::<String>("access_token"));
 
-        let access_token = session.get("access_token").unwrap_or_default();
+        let token = match read_token(session) {
+            Ok(token) => token,
+            Err(e) => return Ok(SongResponse::NotFound(Json(ResponseError { message: e.to_string() }))),
+        };
 
-        let spotify = Spotify::from_token(access_token);
+        let spotify = Spotify::from_token(token);
 
         let spotify_track = match spotify.generate_daily_song(&genre).await {
             Some(track) => track,

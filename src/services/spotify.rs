@@ -19,17 +19,16 @@ const CACHE_PATH: &str = ".spotify_cache/";
 
 impl Spotify {
     pub async fn from_code(code: String) -> Result<Self, ClientError> {
-        let creds = Credentials::from_env().unwrap();
+        let creds = Credentials::from_env().expect("RSPOTIFY_CLIENT_ID and RSPOTIFY_CLIENT_SECRET must be set in the environment");
 
         // Using every possible scope
         let scopes = scopes!(
         "user-read-private",
         "playlist-modify-public"
-    );
+        );
+
         let oauth = OAuth::from_env(scopes).unwrap();
 
-        println!("creds: {:?}", creds);
-        println!("oauth: {:?}", oauth);
         let client = AuthCodeSpotify::new(creds, oauth);
 
         match client.request_token(&code).await {

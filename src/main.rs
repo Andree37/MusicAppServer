@@ -12,6 +12,7 @@ use crate::services::lastfm::LastFM;
 mod api;
 mod models;
 mod services;
+mod token;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
