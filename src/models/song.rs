@@ -1,7 +1,7 @@
-use poem_openapi::payload::Json;
 use poem_openapi::ApiResponse;
-use crate::models::errors::{ResponseError};
+use poem_openapi::payload::Json;
 
+use crate::models::errors::ResponseError;
 use crate::models::genres::Genres;
 
 #[derive(poem_openapi::Object)]

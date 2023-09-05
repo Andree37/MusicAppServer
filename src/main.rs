@@ -1,16 +1,13 @@
 extern crate dotenv;
 
 use std::env;
-use std::sync::{Arc, Mutex};
 
 use poem::{EndpointExt, listener::TcpListener, Route};
 use poem::session::{CookieConfig, CookieSession};
 use poem_openapi::OpenApiService;
-use rspotify::{Credentials, Token};
 
 use crate::services::db::DB;
 use crate::services::lastfm::LastFM;
-use crate::services::spotify::Spotify;
 
 mod api;
 mod models;
@@ -18,7 +15,6 @@ mod services;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // this needs to be redone, we need to login with the user in some way
     dotenv::dotenv()?;
 
     let db = DB::new(env::var("DATABASE_URL").expect("DATABASE_URL must be set")).await?;

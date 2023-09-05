@@ -1,24 +1,19 @@
-use std::sync::Arc;
 use chrono::NaiveDate;
-use poem::middleware::AddData;
 use poem::Result;
 use poem::session::Session;
-use poem::web::{Data, TypedHeader};
-use poem::web::headers::Header;
+use poem::web::{Data};
 use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
 use poem_openapi::payload::{Json, PlainText};
-use rspotify::sync::Mutex;
-use rspotify::Token;
+use rspotify::prelude::OAuthClient;
 
 use crate::models::errors::ResponseError;
 use crate::models::genres::{GenrePayload, Genres};
 use crate::models::song::{SongResponse, SongsResponse};
-use crate::models::spotify::{SpotifyResponse, TokenPayload};
+use crate::models::spotify::{CodePayload, SpotifyResponse};
 use crate::services::db::DB;
 use crate::services::lastfm::LastFM;
 use crate::services::spotify::Spotify;
-use crate::SharedState;
 
 pub struct Api;
 
@@ -33,28 +28,38 @@ impl Api {
     }
 
     #[oai(path = "/spotify/exchange", method = "post")]
-    async fn exchange_token(&self, token_payload: Data<&TokenPayload>, session: &Session) -> Result<SpotifyResponse> {
-        session.set("token", token_payload.access_token.clone());
-        let token = Token {
-            access_token: token_payload.access_token.clone(),
-            expires_in: token_payload.expires_in.clone(),
-            expires_at: token_payload.expires_at.clone(),
-            refresh_token: token_payload.refresh_token.clone(),
-            scopes: token_payload.scopes.clone(),
+    async fn exchange_token(&self, code: Json<CodePayload>, db: Data<&DB>, session: &Session) -> Result<SpotifyResponse> {
+        let spotify = Spotify::from_code(code.0.code).await.map_err(|e| poem::error::BadRequest(e))?;
+
+        let token_opt = spotify.client.read_token_cache(false).await.map_err(|e| poem::error::BadRequest(e))?;
+
+        let token = match token_opt {
+            None => {
+                return Ok(SpotifyResponse::NotFound(Json(ResponseError { message: "invalid token cache".to_string() })));
+            }
+            Some(v) => { v }
         };
+        session.set("access_token", token.clone());
 
-        let spotify = Spotify::new(&token);
+        let expires_in = token.expires_in.num_seconds();
 
-        Ok(SpotifyResponse::SpotifyResponse(Json(token_payload.access_token.clone())))
+        db.0.insert_user(&token.access_token, expires_in as i32, token.expires_at, token.refresh_token).await.map_err(|e| poem::error::BadRequest(e))?;
+
+        Ok(SpotifyResponse::SpotifyResponse(Json("success".to_string())))
     }
 
     #[oai(path = "/songs", method = "post")]
-    async fn get_daily_songs(&self, token_payload: Data<&TokenPayload>, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>, TypedHeader(host): TypedHeader<String>) -> Result<SongResponse> {
+    async fn get_daily_songs(&self, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>, session: &Session) -> Result<SongResponse> {
         let genre: Genres = genre.0.genre.into();
 
         if genre == Genres::Unknown {
             return Ok(SongResponse::NotFound(Json(ResponseError { message: "invalid genre".to_string() })));
         }
+        println!("access_token: {:?}", session.get::<String>("access_token"));
+
+        let access_token = session.get("access_token").unwrap_or_default();
+
+        let spotify = Spotify::from_token(access_token);
 
         let spotify_track = match spotify.generate_daily_song(&genre).await {
             Some(track) => track,

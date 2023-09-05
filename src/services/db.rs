@@ -1,7 +1,8 @@
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 
 use crate::models::genres::Genres;
 use crate::models::song::Song;
+use crate::models::user::User;
 
 #[derive(Clone)]
 pub struct DB {
@@ -35,5 +36,12 @@ impl DB {
             .fetch_all(&self.pool)
             .await?;
         return Ok(songs);
+    }
+
+    pub async fn insert_user(&self, access_token: &str, expires_in: i32, expires_at: Option<DateTime<Utc>>, refresh_token: Option<String>) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(User, "INSERT INTO users (access_token, expires_in, expires_at, refresh_token) VALUES ($1, $2, $3, $4) RETURNING id,access_token, expires_in, expires_at, refresh_token", access_token, expires_in, expires_at, refresh_token)
+            .fetch_one(&self.pool)
+            .await?;
+        return Ok(user);
     }
 }

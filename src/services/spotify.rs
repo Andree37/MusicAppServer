@@ -1,22 +1,53 @@
-use rspotify::{AuthCodeSpotify, ClientError, OAuth, scopes, Token};
+use std::{env, fs};
+use std::path::PathBuf;
+use rspotify::{AuthCodePkceSpotify, AuthCodeSpotify, ClientError, Config, Credentials, OAuth, scopes, Token};
 use rspotify::clients::{BaseClient, OAuthClient};
-use rspotify::model::{Recommendations, SimplifiedAlbum, SimplifiedTrack};
+use rspotify::model::{ArtistId, Recommendations, SearchType, SimplifiedAlbum, SimplifiedTrack};
 use rspotify::model::SearchResult::Albums;
 use rspotify::model::SearchType::Album;
+use rspotify::model::Type::Artist;
 
 use crate::models::genres::Genres;
 
 #[derive(Clone)]
 pub struct Spotify {
-    client: AuthCodeSpotify,
-    token: Token,
+    pub client: AuthCodeSpotify,
 }
 
-impl Spotify {
-    pub fn new(token: &Token) -> Result<Self, ClientError> {
-        let client = AuthCodeSpotify::from_token(token.clone());
+const CACHE_PATH: &str = ".spotify_cache/";
 
-        return Ok(Self { client, token: token.clone() });
+
+impl Spotify {
+    pub async fn from_code(code: String) -> Result<Self, ClientError> {
+        let creds = Credentials::from_env().unwrap();
+
+        // Using every possible scope
+        let scopes = scopes!(
+        "user-read-private",
+        "playlist-modify-public"
+    );
+        let oauth = OAuth::from_env(scopes).unwrap();
+
+        println!("creds: {:?}", creds);
+        println!("oauth: {:?}", oauth);
+        let client = AuthCodeSpotify::new(creds, oauth);
+
+        match client.request_token(&code).await {
+            Ok(_) => {
+                println!("Requested user token successfully");
+            }
+            Err(err) => {
+                println!("Failed to get user token: {:?}", err);
+            }
+        }
+
+        return Ok(Self { client });
+    }
+
+    pub fn from_token(token: Token) -> Self {
+        let client = AuthCodeSpotify::from_token(token);
+
+        return Self { client };
     }
 
     pub async fn get_recommendations(&self, genre: String, limit: u32) -> Result<Recommendations, ClientError> {
