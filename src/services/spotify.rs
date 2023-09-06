@@ -1,20 +1,17 @@
-use std::{env, fs};
-use std::path::PathBuf;
-use rspotify::{AuthCodePkceSpotify, AuthCodeSpotify, ClientError, Config, Credentials, OAuth, scopes, Token};
+use poem::session::Session;
+use rspotify::{AuthCodeSpotify, ClientError, Credentials, OAuth, scopes, Token};
 use rspotify::clients::{BaseClient, OAuthClient};
-use rspotify::model::{ArtistId, Recommendations, SearchType, SimplifiedAlbum, SimplifiedTrack};
+use rspotify::model::{Recommendations, SimplifiedAlbum, SimplifiedTrack};
 use rspotify::model::SearchResult::Albums;
 use rspotify::model::SearchType::Album;
-use rspotify::model::Type::Artist;
 
 use crate::models::genres::Genres;
+use crate::token::token::write_token;
 
 #[derive(Clone)]
 pub struct Spotify {
     pub client: AuthCodeSpotify,
 }
-
-const CACHE_PATH: &str = ".spotify_cache/";
 
 
 impl Spotify {
@@ -43,10 +40,32 @@ impl Spotify {
         return Ok(Self { client });
     }
 
-    pub fn from_token(token: Token) -> Self {
-        let client = AuthCodeSpotify::from_token(token);
+    pub async fn from_token(token: Token, session: &Session) -> Result<Self, ClientError> {
+        let client = AuthCodeSpotify::from_token(token.clone());
 
-        return Self { client };
+        match token.expires_at {
+            Some(expires_at) => {
+                let now = chrono::Utc::now();
+                if now > expires_at {
+                    match client.refresh_token().await {
+                        Ok(_) => {
+                            match write_token(token, &session) {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    println!("Failed to write token: {:?}", err)
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            return Err(err);
+                        }
+                    }
+                }
+            }
+            None => {}
+        }
+
+        return Ok(Self { client });
     }
 
     pub async fn get_recommendations(&self, genre: String, limit: u32) -> Result<Recommendations, ClientError> {

@@ -1,4 +1,3 @@
-use std::fmt::Error;
 use chrono::NaiveDate;
 use poem::Result;
 use poem::session::Session;
@@ -6,7 +5,6 @@ use poem::web::{Data};
 use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
 use poem_openapi::payload::{Json, PlainText};
-use rspotify::prelude::OAuthClient;
 
 use crate::models::errors::ResponseError;
 use crate::models::genres::{GenrePayload, Genres};
@@ -66,7 +64,7 @@ impl Api {
             Err(e) => return Ok(SongResponse::NotFound(Json(ResponseError { message: e.to_string() }))),
         };
 
-        let spotify = Spotify::from_token(token);
+        let spotify = Spotify::from_token(token, session).await.map_err(|e| poem::error::NotAcceptable(e))?;
 
         let spotify_track = match spotify.generate_daily_song(&genre).await {
             Some(track) => track,
