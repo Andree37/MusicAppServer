@@ -7,7 +7,7 @@ use poem_openapi::param::Query;
 use poem_openapi::payload::{Json, PlainText};
 
 use crate::models::errors::ResponseError;
-use crate::models::genres::{GenrePayload, Genres};
+use crate::models::genres::{GenrePayload, GenreTypes};
 use crate::models::song::{SongResponse, SongsResponse};
 use crate::models::spotify::{CodePayload, SpotifyResponse};
 use crate::services::db::DB;
@@ -53,9 +53,9 @@ impl Api {
 
     #[oai(path = "/songs", method = "post")]
     async fn get_daily_songs(&self, genre: Json<GenrePayload>, lastfm: Data<&LastFM>, db: Data<&DB>, session: &Session) -> Result<SongResponse> {
-        let genre: Genres = genre.0.genre.into();
+        let genre: GenreTypes = genre.0.genre.into();
 
-        if genre == Genres::Unknown {
+        if genre == GenreTypes::Unknown {
             return Ok(SongResponse::NotFound(Json(ResponseError { message: "invalid genre".to_string() })));
         }
 

@@ -1,10 +1,14 @@
 use poem_openapi::{Enum, Object};
 
+pub struct Genre {
+    pub name: GenreTypes,
+}
+
 #[derive(sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
 #[derive(Enum)]
 #[derive(PartialEq)]
-pub enum Genres {
+pub enum GenreTypes {
     Unknown,
     Pop,
     Rock,
@@ -16,35 +20,35 @@ pub struct GenrePayload {
     pub genre: String,
 }
 
-impl From<String> for Genres {
+impl From<String> for GenreTypes {
     fn from(value: String) -> Self {
         match value {
-            s if s.eq_ignore_ascii_case("pop") => Genres::Pop,
-            s if s.eq_ignore_ascii_case("rock") => Genres::Rock,
-            s if s.eq_ignore_ascii_case("metal") => Genres::Metal,
-            _ => Genres::Unknown,
+            s if s.eq_ignore_ascii_case("pop") => GenreTypes::Pop,
+            s if s.eq_ignore_ascii_case("rock") => GenreTypes::Rock,
+            s if s.eq_ignore_ascii_case("metal") => GenreTypes::Metal,
+            _ => GenreTypes::Unknown,
         }
     }
 }
 
-impl From<Genres> for String {
-    fn from(value: Genres) -> Self {
+impl From<GenreTypes> for String {
+    fn from(value: GenreTypes) -> Self {
         return match value {
-            Genres::Unknown => "unknown".to_string(),
-            Genres::Pop => "pop".to_string(),
-            Genres::Rock => "rock".to_string(),
-            Genres::Metal => "metal".to_string(),
+            GenreTypes::Unknown => "unknown".to_string(),
+            GenreTypes::Pop => "pop".to_string(),
+            GenreTypes::Rock => "rock".to_string(),
+            GenreTypes::Metal => "metal".to_string(),
         };
     }
 }
 
-impl From<&Genres> for String {
-    fn from(value: &Genres) -> Self {
+impl From<&GenreTypes> for String {
+    fn from(value: &GenreTypes) -> Self {
         return match value {
-            Genres::Unknown => "unknown".to_string(),
-            Genres::Pop => "pop".to_string(),
-            Genres::Rock => "rock".to_string(),
-            Genres::Metal => "metal".to_string(),
+            GenreTypes::Unknown => "unknown".to_string(),
+            GenreTypes::Pop => "pop".to_string(),
+            GenreTypes::Rock => "rock".to_string(),
+            GenreTypes::Metal => "metal".to_string(),
         };
     }
 }

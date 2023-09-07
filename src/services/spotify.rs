@@ -5,7 +5,7 @@ use rspotify::model::{Recommendations, SimplifiedAlbum, SimplifiedTrack};
 use rspotify::model::SearchResult::Albums;
 use rspotify::model::SearchType::Album;
 
-use crate::models::genres::Genres;
+use crate::models::genres::GenreTypes;
 use crate::token::token::write_token;
 
 #[derive(Clone)]
@@ -101,7 +101,7 @@ impl Spotify {
         };
     }
 
-    pub async fn generate_daily_song(&self, genre: &Genres) -> Option<SimplifiedTrack> {
+    pub async fn generate_daily_song(&self, genre: &GenreTypes) -> Option<SimplifiedTrack> {
         let genre: String = genre.into();
         let recommendations = match self.get_recommendations(genre, 1).await {
             Ok(rec) => rec,
