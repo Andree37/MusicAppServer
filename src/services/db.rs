@@ -46,11 +46,14 @@ impl DB {
     }
 
     pub async fn insert_user_genres(&self, user_id: i32, genre: Vec<GenreTypes>) -> Result<(), sqlx::Error> {
-        let genre: String = genre.iter().map(|g| g.into()).collect::<Vec<String>>().join(",");
+        let genres: Vec<String> = genre.iter().map(|g| g.into()).collect::<Vec<String>>();
 
-        sqlx::query!("INSERT INTO user_genres (user_id, genre_id) VALUES ($1, $2)", user_id, genre)
-            .execute(&self.pool)
-            .await?;
+        for genre in genres {
+            sqlx::query!("INSERT INTO user_genres (user_id, genre_id) VALUES ($1, $2)", user_id, genre)
+                .execute(&self.pool)
+                .await?;
+        }
+
         return Ok(());
     }
 

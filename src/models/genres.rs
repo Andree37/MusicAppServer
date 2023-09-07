@@ -1,4 +1,6 @@
-use poem_openapi::{Enum, Object};
+use poem_openapi::{ApiResponse, Enum, Object};
+use poem_openapi::payload::Json;
+use crate::models::errors::ResponseError;
 
 pub struct Genre {
     pub name: GenreTypes,
@@ -18,6 +20,11 @@ pub enum GenreTypes {
 #[derive(Object)]
 pub struct GenrePayload {
     pub genre: String,
+}
+
+#[derive(Object)]
+pub struct GenresPayload {
+    pub genres: Vec<String>,
 }
 
 impl From<String> for GenreTypes {
@@ -51,4 +58,16 @@ impl From<&GenreTypes> for String {
             GenreTypes::Metal => "metal".to_string(),
         };
     }
+}
+
+#[derive(ApiResponse)]
+pub enum GenreResponse {
+    #[oai(status = 200)]
+    GenreResponse(Json<String>),
+
+    #[oai(status = 404)]
+    NotFound(Json<ResponseError>),
+
+    #[oai(status = 401)]
+    BadRequest(Json<ResponseError>),
 }
