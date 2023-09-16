@@ -16,6 +16,10 @@ mod token;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // TODO: add the ability to get the user info from hte first login and store that on a user table
+    // this will allow us to maintain the user info and relogin him
+    // it needs a key that spotify needs to send as unique identifier
+    // update the database with this information
     dotenv::dotenv()?;
 
     let db = DB::new(env::var("DATABASE_URL").expect("DATABASE_URL must be set")).await?;
