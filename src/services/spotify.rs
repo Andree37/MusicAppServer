@@ -50,7 +50,9 @@ impl Spotify {
                     match client.refresh_token().await {
                         Ok(_) => {
                             match write_token(token, &session) {
-                                Ok(_) => {}
+                                Ok(_) => {
+                                    println!("Refreshed token successfully");
+                                }
                                 Err(err) => {
                                     println!("Failed to write token: {:?}", err)
                                 }

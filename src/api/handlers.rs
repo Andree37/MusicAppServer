@@ -4,11 +4,11 @@ use poem::session::Session;
 use poem::web::{Data};
 use poem_openapi::OpenApi;
 use poem_openapi::param::Query;
-use poem_openapi::payload::{Json, PlainText};
+use poem_openapi::payload::{Json};
 
 use crate::models::errors::ResponseError;
-use crate::models::genres::{GenrePayload, GenresPayload, GenreTypes};
-use crate::models::song::{Song, SongResponse, SongsResponse};
+use crate::models::genres::{GenresPayload};
+use crate::models::song::{Song, SongsResponse};
 use crate::models::spotify::{CodePayload, SpotifyResponse};
 use crate::services::db::DB;
 use crate::services::lastfm::LastFM;
@@ -50,7 +50,15 @@ impl Api {
             Ok(token) => token,
             Err(e) => return Ok(SongsResponse::NotFound(Json(ResponseError { message: e.to_string() }))),
         };
-        let spotify = Spotify::from_token(token, session).await.map_err(|e| poem::error::NotAcceptable(e))?;
+        let spotify = Spotify::from_token(token.clone(), session).await.map_err(|e| poem::error::NotAcceptable(e))?;
+
+        // update the token on the database
+        let user_id = match session.get("user_id") {
+            Some(user_id) => user_id,
+            None => return Ok(SongsResponse::NotFound(Json(ResponseError { message: "no user id found".to_string() }))),
+        };
+
+        db.0.update_user_token(user_id, &token.access_token, token.expires_in.num_seconds() as i32, &token.expires_at.unwrap(), &token.refresh_token.unwrap()).await.map_err(|e| poem::error::BadRequest(e))?;
 
         let genres = db.0.get_user_genres(1).await.map_err(|e| poem::error::BadRequest(e))?;
         let mut songs: Vec<Song> = vec![];

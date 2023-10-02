@@ -63,4 +63,11 @@ impl DB {
             .await?;
         return Ok(genres);
     }
+
+    pub async fn update_user_token(&self, user_id: i32, access_token: &str, expires_in: i32, expires_at: &DateTime<Utc>, refresh_token: &String) -> Result<(), sqlx::Error> {
+        sqlx::query!("UPDATE users SET access_token = $1, expires_in = $2, expires_at = $3, refresh_token = $4 WHERE id = $5", access_token, expires_in, expires_at, refresh_token, user_id)
+            .execute(&self.pool)
+            .await?;
+        return Ok(());
+    }
 }
