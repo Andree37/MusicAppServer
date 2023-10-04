@@ -10,6 +10,7 @@ pub struct Genre {
 #[sqlx(rename_all = "lowercase")]
 #[derive(Enum)]
 #[derive(PartialEq)]
+#[derive(Copy, Clone)]
 pub enum GenreTypes {
     Unknown,
     Pop,
@@ -63,7 +64,7 @@ impl From<&GenreTypes> for String {
 #[derive(ApiResponse)]
 pub enum GenreResponse {
     #[oai(status = 200)]
-    GenreResponse(Json<String>),
+    GenreResponse(Json<Vec<String>>),
 
     #[oai(status = 404)]
     NotFound(Json<ResponseError>),

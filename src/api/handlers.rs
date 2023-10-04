@@ -7,7 +7,7 @@ use poem_openapi::param::Query;
 use poem_openapi::payload::{Json};
 
 use crate::models::errors::ResponseError;
-use crate::models::genres::{GenresPayload};
+use crate::models::genres::{GenreResponse, GenresPayload};
 use crate::models::song::{Song, SongsResponse};
 use crate::models::spotify::{CodePayload, SpotifyResponse};
 use crate::services::db::DB;
@@ -132,6 +132,15 @@ impl Api {
             Ok(_) => "success".to_string(),
             Err(e) => return Ok(SpotifyResponse::NotFound(Json(ResponseError { message: e.to_string() }))),
         };
-        Ok(SpotifyResponse::SpotifyResponse(Json(result)))
+        return Ok(SpotifyResponse::SpotifyResponse(Json(result)));
+    }
+
+    #[oai(path = "/genres", method = "get")]
+    async fn get_genres(&self, db: Data<&DB>, session: &Session) -> Result<GenreResponse> {
+        let user_id = session.get("user_id").ok_or(GenreResponse::NotFound(Json(ResponseError { message: "no user id found".to_string() })))?;
+        let genres = db.0.get_user_genres(user_id).await.map_err(|e| GenreResponse::NotFound(Json(ResponseError { message: e.to_string() })))?;
+        let genres = genres.iter().map(|genre| genre.name.into()).collect();
+
+        return Ok(GenreResponse::GenreResponse(Json(genres)));
     }
 }
