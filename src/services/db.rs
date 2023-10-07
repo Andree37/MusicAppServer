@@ -15,24 +15,18 @@ impl DB {
         return Ok(Self { pool });
     }
 
-    pub async fn select_all_songs(&self) -> Result<Vec<Song>, sqlx::Error> {
-        let songs = sqlx::query_as!(Song, "SELECT id, title, artist, link, description, overview, created_at, genre, album_cover FROM songs")
-            .fetch_all(&self.pool)
-            .await?;
-        return Ok(songs);
-    }
-
     pub async fn save_song(&self, title: &str, artist: &str, link: &str, description: &str, overview: &str, genre: &GenreTypes, album_cover: &str) -> Result<Song, sqlx::Error> {
         let genre: String = genre.into();
 
         let song = sqlx::query_as!(Song, "INSERT INTO songs (title, artist, link, description, overview, genre, album_cover) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, title, artist, link, description, overview, created_at, genre, album_cover", title, artist, link, description, overview, genre, album_cover)
             .fetch_one(&self.pool)
             .await?;
+
         return Ok(song);
     }
 
-    pub async fn get_daily_songs(&self, day: NaiveDate) -> Result<Vec<Song>, sqlx::Error> {
-        let songs = sqlx::query_as!(Song, "SELECT id, title, artist, link, description, overview, created_at, genre, album_cover FROM songs WHERE created_at::date >= $1 and created_at::date < $1 + interval '1 day'", day)
+    pub async fn get_daily_songs(&self, day: NaiveDate, user_id: i32) -> Result<Vec<Song>, sqlx::Error> {
+        let songs = sqlx::query_as!(Song, "SELECT s.id, s.title, s.artist, s.link, s.description, s.overview, s.created_at, s.genre, s.album_cover FROM songs s WHERE s.user_id = $1 AND s.created_at::date >= $2 and s.created_at::date < $2 + interval '1 day'", user_id, day)
             .fetch_all(&self.pool)
             .await?;
         return Ok(songs);
@@ -69,5 +63,12 @@ impl DB {
             .execute(&self.pool)
             .await?;
         return Ok(());
+    }
+
+    pub async fn get_all_songs_from_user(&self, user_id: i32) -> Result<Vec<Song>, sqlx::Error> {
+        let songs = sqlx::query_as!(Song, "SELECT s.id, s.title, s.artist, s.link, s.description, s.overview, s.created_at, s.genre, s.album_cover FROM songs s WHERE s.user_id = $1", user_id)
+            .fetch_all(&self.pool)
+            .await?;
+        return Ok(songs);
     }
 }

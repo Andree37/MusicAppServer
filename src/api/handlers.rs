@@ -60,6 +60,7 @@ impl Api {
 
         db.0.update_user_token(user_id, &token.access_token, token.expires_in.num_seconds() as i32, &token.expires_at.unwrap(), &token.refresh_token.unwrap()).await.map_err(|e| poem::error::BadRequest(e))?;
 
+        let previous_user_songs = db.0.get_all_songs_from_user(user_id).await.map_err(|e| poem::error::BadRequest(e))?;
         let genres = db.0.get_user_genres(1).await.map_err(|e| poem::error::BadRequest(e))?;
         let mut songs: Vec<Song> = vec![];
         for genre in genres {
@@ -68,6 +69,16 @@ impl Api {
                 Some(track) => track,
                 None => return Ok(SongsResponse::NotFound(Json(ResponseError { message: "no track found".to_string() }))),
             };
+
+            // This can make an infinite loop, but I am okay with that for now ::)
+            let mut song_exists = previous_user_songs.iter().any(|song| song.title == spotify_track.name && song.artist == spotify_track.artists.first().unwrap().name);
+            while song_exists {
+                let spotify_track = match spotify.generate_daily_song(&genre).await {
+                    Some(track) => track,
+                    None => return Ok(SongsResponse::NotFound(Json(ResponseError { message: "no track found".to_string() }))),
+                };
+                song_exists = previous_user_songs.iter().any(|song| song.title == spotify_track.name && song.artist == spotify_track.artists.first().unwrap().name);
+            }
 
             let artist_name = match &spotify_track.artists.first() {
                 Some(artist) => &artist.name,
@@ -111,12 +122,13 @@ impl Api {
     }
 
     #[oai(path = "/songs", method = "get")]
-    async fn get_songs(&self, day: Query<Option<String>>, db: Data<&DB>) -> Result<SongsResponse> {
+    async fn get_songs(&self, day: Query<Option<String>>, db: Data<&DB>, session: &Session) -> Result<SongsResponse> {
         return match day.0 {
             Some(day) => {
                 let day = NaiveDate::parse_from_str(&day, "%Y-%m-%d")
                     .map_err(|e| SongsResponse::BadRequest(Json(ResponseError { message: e.to_string() })))?;
-                let songs = db.0.get_daily_songs(day)
+                let user_id = session.get("user_id").ok_or(SongsResponse::NotFound(Json(ResponseError { message: "no user id found".to_string() })))?;
+                let songs = db.0.get_daily_songs(day, user_id)
                     .await.map_err(|e| SongsResponse::BadRequest(Json(ResponseError { message: e.to_string() })))?;
                 Ok(SongsResponse::Song(Json(songs)))
             }
