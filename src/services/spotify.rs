@@ -1,7 +1,10 @@
+use std::borrow::Cow;
+use std::fmt::format;
+use chrono::NaiveDate;
 use poem::session::Session;
 use rspotify::{AuthCodeSpotify, ClientError, Credentials, OAuth, scopes, Token};
 use rspotify::clients::{BaseClient, OAuthClient};
-use rspotify::model::{Recommendations, SimplifiedAlbum, SimplifiedTrack};
+use rspotify::model::{IdError, PlayableId, PlaylistId, Recommendations, SimplifiedAlbum, SimplifiedTrack, TrackId, UserId};
 use rspotify::model::SearchResult::Albums;
 use rspotify::model::SearchType::Album;
 
@@ -115,5 +118,23 @@ impl Spotify {
         };
 
         return Some(song);
+    }
+
+    pub async fn create_playlist(&self, day: &NaiveDate) -> Result<PlaylistId, ClientError> {
+        let user_id = self.client.current_user().await?.id;
+        let playlist = self.client.user_playlist_create(user_id, &format!("MusicApp Day {day}"), Some(false), Some(false), Some(&format!("MusicApp playlist for {day}"))).await?;
+        return Ok(playlist.id);
+    }
+
+    pub async fn add_songs_to_playlist<'a>(&self, playlist_id: PlaylistId<'a>, songs: Vec<String>) -> Result<(), ClientError> {
+        let uris: Vec<PlayableId> = songs.iter().flat_map(|song| {
+            let track_id = match TrackId::from_uri(song) {
+                Ok(t) => { Some(PlayableId::Track(t)) }
+                Err(_) => { None }
+            };
+            return track_id;
+        }).collect();
+        self.client.playlist_add_items(playlist_id, uris, None).await?;
+        return Ok(());
     }
 }

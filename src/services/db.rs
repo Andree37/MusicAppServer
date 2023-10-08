@@ -25,7 +25,7 @@ impl DB {
         return Ok(song);
     }
 
-    pub async fn get_daily_songs(&self, day: NaiveDate, user_id: i32) -> Result<Vec<Song>, sqlx::Error> {
+    pub async fn get_daily_songs(&self, day: &NaiveDate, user_id: i32) -> Result<Vec<Song>, sqlx::Error> {
         let songs = sqlx::query_as!(Song, "SELECT s.id, s.title, s.artist, s.link, s.description, s.overview, s.created_at, s.genre, s.album_cover FROM songs s WHERE s.user_id = $1 AND s.created_at::date >= $2 and s.created_at::date < $2 + interval '1 day'", user_id, day)
             .fetch_all(&self.pool)
             .await?;

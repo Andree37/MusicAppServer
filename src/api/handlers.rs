@@ -128,7 +128,7 @@ impl Api {
                 let day = NaiveDate::parse_from_str(&day, "%Y-%m-%d")
                     .map_err(|e| SongsResponse::BadRequest(Json(ResponseError { message: e.to_string() })))?;
                 let user_id = session.get("user_id").ok_or(SongsResponse::NotFound(Json(ResponseError { message: "no user id found".to_string() })))?;
-                let songs = db.0.get_daily_songs(day, user_id)
+                let songs = db.0.get_daily_songs(&day, user_id)
                     .await.map_err(|e| SongsResponse::BadRequest(Json(ResponseError { message: e.to_string() })))?;
                 Ok(SongsResponse::Song(Json(songs)))
             }
@@ -154,5 +154,25 @@ impl Api {
         let genres = genres.iter().map(|genre| genre.name.into()).collect();
 
         return Ok(GenreResponse::GenreResponse(Json(genres)));
+    }
+
+    #[oai(path = "/playlist", method = "get")]
+    async fn generate_playlist(&self, db: Data<&DB>, session: &Session) -> Result<SpotifyResponse> {
+        let user_id = session.get("user_id").ok_or(SpotifyResponse::NotFound(Json(ResponseError { message: "no user id found".to_string() })))?;
+        let day: NaiveDate = chrono::Utc::now().naive_utc().date();
+        let songs = db.0.get_daily_songs(&day, user_id).await.map_err(|e| SpotifyResponse::NotFound(Json(ResponseError { message: e.to_string() })))?;
+        let token = match read_token(session) {
+            Ok(token) => token,
+            Err(e) => return Ok(SpotifyResponse::NotFound(Json(ResponseError { message: e.to_string() }))),
+        };
+
+        let spotify = Spotify::from_token(token.clone(), session).await.map_err(|e| poem::error::NotAcceptable(e))?;
+        let playlist_id = spotify.create_playlist(&day).await.map_err(|e| poem::error::NotAcceptable(e))?;
+        let mut uris: Vec<String> = vec![];
+        for song in songs {
+            uris.push(song.link);
+        }
+        spotify.add_songs_to_playlist(playlist_id, uris).await.map_err(|e| poem::error::NotAcceptable(e))?;
+        Ok(SpotifyResponse::SpotifyResponse(Json("success".to_string())))
     }
 }
